@@ -1,0 +1,11 @@
+{
+  "apiVersion": 2,
+  "name": "network/recent-posts",
+  "title": "Netzwerk-Beiträge",
+  "category": "widgets",
+  "icon": "admin-site-alt3",
+  "supports": {
+    "html": false
+  },
+  "editorScript": "file:./index.js"
+}

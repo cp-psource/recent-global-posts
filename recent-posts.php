@@ -5,11 +5,11 @@ Plugin URI: https://n3rds.work
 Description: Zeige eine anpassbare Liste der letzten Beiträge aus Deinem Multisite-Netzwerk auf Deiner Hauptseite an.
 Author: WMS N@W
 Version: 3.1.1
-Author URI: https://n3rds.work
+Author URI: https://github.com/cp-psource
 */
 
 // +----------------------------------------------------------------------+
-// | Copyright WMS N@W (https://n3rds.work/)                                |
+// | Copyright PSOURCE (https://github.com/cp-psource)                                |
 // +----------------------------------------------------------------------+
 // | This program is free software; you can redistribute it and/or modify |
 // | it under the terms of the GNU General Public License, version 2, as  |
@@ -26,166 +26,260 @@ Author URI: https://n3rds.work
 // | MA 02110-1301 USA                                                    |
 // +----------------------------------------------------------------------+
 
-require 'psource-plugin-update/plugin-update-checker.php';
-$MyUpdateChecker = Puc_v4_Factory::buildUpdateChecker(
-	'https://n3rds.work//wp-update-server/?action=get_metadata&slug=recent-global-posts', 
-	__FILE__, 
-	'recent-global-posts' 
+
+if ( ! defined( 'ABSPATH' ) ) exit;
+
+/**
+ * @@@@@@@@@@@@@@@@@ PS UPDATER 1.3 @@@@@@@@@@@
+ **/
+require 'psource/psource-plugin-update/plugin-update-checker.php';
+use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
+ 
+$myUpdateChecker = PucFactory::buildUpdateChecker(
+	'https://github.com/cp-psource/recent-global-posts',
+	__FILE__,
+	'recent-global-posts'
 );
+ 
+//Set the branch that contains the stable release.
+$myUpdateChecker->setBranch('master');
 
-/*
-Usage:
-display_recent_posts(NUMBER,TITLE_CHARACTERS,CONTENT_CHARACTERS,TITLE_CONTENT_DIVIDER,TITLE_BEFORE,TITLE_AFTER,GLOBAL_BEFORE,GLOBAL_AFTER,BEFORE,AFTER,TITLE_LINK,SHOW_AVATARS,AVATAR_SIZE,POSTTYPE, READ_MORE, READ_MORE_LINK, SHOW_BLOG, ECHO);
+class Recent_Network_Posts {
 
-Ex:
-display_recent_posts(10,40,150,'<br />','<strong>','</strong>','<ul>','</ul>','<li>','</li>','yes','yes',16, 'post', '... more', true, true, true);
-*/
-
-class recentpostsshortcode {
-
-	/** @var wpdb */
-	var $db;
-
-	function __construct() {
-		global $wpdb;
-
-		$this->db = $wpdb;
-
-		add_shortcode( 'globalrecentposts', array( $this, 'display_recent_posts_shortcode' ) );
+	public function __construct() {
+		add_shortcode( 'recent_network_posts', [ $this, 'render_shortcode' ] );
+		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_styles' ], 99 );
+		add_action( 'init', [ $this, 'register_block' ] );
+		add_action( 'admin_menu', [ $this, 'register_settings_page' ] );
+		add_action( 'admin_init', [ $this, 'register_settings' ] );
 	}
 
-	function display_recent_posts( $tmp_number, $tmp_title_characters, $tmp_content_characters, $tmp_title_content_divider, $tmp_title_before, $tmp_title_after, $tmp_global_before, $tmp_global_after, $tmp_before, $tmp_after, $tmp_title_link = 'no', $tmp_show_avatars = 'yes', $tmp_avatar_size = 16, $posttype = 'post', $read_more = '', $read_more_link = false, $show_blog = false, $output = true ) {
-		
-		global $network_post;
-		$html = '';
-		$classes = apply_filters( 
-						'recent_network_posts_classes', 
-						array(
-							'blog-info' => 'blog-info',
-							'read-more' => 'read-more'
-						) 
-					);
+	public function enqueue_styles() {
+		wp_register_style( 'recent-network-posts-style', false );
+		wp_enqueue_style( 'recent-network-posts-style' );
+		wp_add_inline_style( 'recent-network-posts-style', $this->get_inline_css() );
+	}
 
-		network_query_posts( array( 'post_type' => $posttype, 'posts_per_page' => $tmp_number ) );
-		if ( network_have_posts() ) {
-			
-			$default_avatar = get_option( 'default_avatar' );
+	private function get_inline_css() {
+		return <<<CSS
+.network-posts {
+	display: flex;
+	flex-direction: column;
+	gap: 2rem;
+	margin: 2rem 0;
+}
 
-			while ( network_have_posts() ) {
-				network_the_post();
+.network-posts.layout-grid {
+	all: initial;
+	display: grid !important;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+	gap: 2rem !important;
+}
 
-				$blog_id = $network_post->BLOG_ID;
-				$post_url = network_get_permalink();
-				$html .= $tmp_before;
+.network-post {
+	background: #fff;
+	border: 1px solid #ddd;
+	border-radius: 12px;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+	transition: transform 0.2s ease;
+}
 
-				if ( $tmp_title_characters > 0 ) {
+.network-post:hover {
+	transform: translateY(-4px);
+}
 
-					$html .= $tmp_title_before;
+.network-post .thumb img {
+	width: 100%;
+	height: auto;
+	display: block;
+}
 
-					if ( $tmp_show_avatars == 'yes' ) {
-						$the_author = network_get_the_author_id();
-						$html .= get_avatar( $the_author, $tmp_avatar_size, $default_avatar ) . ' ';
-					}
+.network-post .content {
+	padding: 1rem;
+}
 
-					$the_title = network_get_the_title();
+.network-post h3 {
+	margin-top: 0;
+	font-size: 1.2rem;
+}
 
-					if ( $tmp_title_link == 'no' ) {
-						$html .= substr( $the_title, 0, $tmp_title_characters );
-					} else {
-						$html .= '<a href="' . $post_url . '" >' . substr( $the_title, 0, $tmp_title_characters ) . '</a>';
-					}
+.network-post p {
+	margin: 0.5rem 0;
+	font-size: 0.95rem;
+	color: #444;
+}
 
-					if ( $show_blog ) {
-						$blog_details = get_blog_details( $blog_id );
-						$site_url = get_site_url( $blog_id );
-						$class = $classes['blog-info'];
-						$post_blog = "<span class='{$class}'>
-										<a href='{$site_url}'>{$blog_details->blogname}</a>
-									</span>";
+.network-post .avatar {
+	margin-top: 0.5rem;
+}
 
-						$post_blog = apply_filters( 
-										'recent_network_posts_post_blog',
-										$post_blog,
-										$blog_id
-									);
+.network-post .blogname {
+	font-size: 0.85rem;
+	color: #888;
+}
 
-						$html .= ' (<a href="' . get_site_url( $blog_id ) . '">'. $blog_details->blogname .'</a>)';
-					}
+.network-post .read-more {
+	display: inline-block;
+	margin-top: 1rem;
+	font-weight: bold;
+	text-decoration: none;
+	color: #005f99;
+}
 
-					$html .= $tmp_title_after;
-				}
-				$html .= $tmp_title_content_divider;
+.network-post .read-more:hover {
+	text-decoration: underline;
+}
+CSS;
+	}
 
-				if ( $tmp_content_characters > 0 ) {
-					$the_content = network_get_the_content();
+	public function render_shortcode( $atts ) {
+		$options = get_option( 'network_posts_defaults', [] );
+		$args = shortcode_atts( array_merge( [
+			'number'             => $options['number'] ?? 5,
+			'posttype'           => 'post',
+			'show_avatars'       => 'no',
+			'avatar_size'        => 32,
+			'show_blog'          => false,
+			'read_more'          => '',
+			'read_more_link'     => false,
+			'layout'             => isset( $options['layout'] ) ? sanitize_key( $options['layout'] ) : 'card',
+		], $options ), $atts );
 
-					$words = substr( strip_tags( $the_content ),0 ,$tmp_content_characters );
-					$last_space_position = strrpos( $words, ' ' );
-					$html .= substr($words, 0, $last_space_position);
+		return $this->get_recent_posts( $args );
+	}
 
-					if ( ! empty( $read_more ) ) {
+	private function get_recent_posts( array $args ): string {
+		global $wpdb;
+		$sites = get_sites( [ 'public' => 1, 'archived' => 0, 'spam' => 0 ] );
+		$posts = [];
 
-						$read_more_text = $read_more;
-						$class = $classes['read-more'];
+		foreach ( $sites as $site ) {
+			switch_to_blog( $site->blog_id );
 
-						if ( $read_more_link ) {
-							$read_more_text = "<a href='{$post_url}' >{$read_more_text}</a>";
-						}
+			$q = new WP_Query([
+				'post_type'      => $args['posttype'],
+				'posts_per_page' => $args['number'],
+				'post_status'    => 'publish',
+			]);
 
-						$html .= "<span class='{$class}'>{$read_more_text}</span>";
-					}
-
-				}
-
-				$html .= $tmp_after;
+			while ( $q->have_posts() ) {
+				$q->the_post();
+				$posts[] = [
+					'title'   => get_the_title(),
+					'url'     => get_permalink(),
+					'excerpt' => get_the_excerpt(),
+					'thumb'   => get_the_post_thumbnail( get_the_ID(), 'medium' ),
+					'blogname'=> get_bloginfo( 'name' ),
+					'author'  => get_the_author_meta( 'display_name' ),
+					'avatar'  => get_avatar( get_the_author_meta('ID'), $args['avatar_size'] )
+				];
 			}
 
-			$html = apply_filters( 
-						'recent_network_posts_list_html',
-						$tmp_global_before . $html . $tmp_global_after,
-						$html,
-						$tmp_global_before,
-						$tmp_global_after
-					);
+			wp_reset_postdata();
+			restore_current_blog();
 		}
 
-		if ( $output ) {
-			echo $html;
-		} else {
-			return $html;
+		usort( $posts, function( $a, $b ) {
+			return strcmp( $b['title'], $a['title'] );
+		});
+
+		$layout = preg_replace( '/[^a-z0-9_-]/i', '', $args['layout'] );
+		$layout_class = 'layout-' . sanitize_html_class( sanitize_key( $args['layout'] ) );
+
+		$html = '<div class="network-posts ' . esc_attr( $layout_class ) . '">';
+
+		foreach ( array_slice( $posts, 0, $args['number'] ) as $post ) {
+			$html .= '<div class="network-post">
+				<div class="thumb">' . $post['thumb'] . '</div>
+				<div class="content">
+					<h3><a href="' . esc_url( $post['url'] ) . '">' . esc_html( $post['title'] ) . '</a></h3>
+					<p>' . esc_html( $post['excerpt'] ) . '</p>
+					<small>von ' . esc_html( $post['author'] ) . '</small>';
+
+				if ( $args['show_avatars'] === 'yes' ) {
+					$html .= '<div class="avatar">' . $post['avatar'] . '</div>';
+				}
+
+				if ( $args['show_blog'] ) {
+					$html .= '<div class="blogname">' . esc_html( $post['blogname'] ) . '</div>';
+				}
+
+				if ( $args['read_more'] ) {
+					$link = $args['read_more_link'] ? $post['url'] : '#';
+					$html .= '<a class="read-more" href="' . esc_url( $link ) . '">' . esc_html( $args['read_more'] ) . '</a>';
+				}
+
+				$html .= '</div></div>';
+		}
+
+		$html .= '</div>';
+		return $html;
+	}
+
+	public function register_block() {
+		if ( function_exists( 'register_block_type' ) ) {
+			register_block_type( __DIR__ . '/block' );
 		}
 	}
 
-	function display_recent_posts_shortcode( $atts ) {
-		extract( shortcode_atts( array(
-			'number'                => 5,
-			'title_characters'      => 250,
-			'content_characters'    => 0,
-			'title_content_divider' => '<br />',
-			'title_before'          => '',
-			'title_after'           => '',
-			'global_before'         => '<ul>',
-			'global_after'          => '</ul>',
-			'before'                => '<li>',
-			'after'                 => '</li>',
-			'title_link'            => 'yes',
-			'show_avatars'          => 'no',
-			'avatar_size'           => 16,
-			'posttype'              => 'post',
-			'read_more'				=> '',
-			'read_more_link'		=> false,
-			'show_blog'				=> false,
-
-		), $atts ) );
-
-		return $this->display_recent_posts( $number, $title_characters, $content_characters, $title_content_divider, $title_before, $title_after, $global_before, $global_after, $before, $after, $title_link, $show_avatars, $avatar_size, $posttype, $read_more, $read_more_link, $show_blog, false );
+	public function register_settings_page() {
+		add_options_page(
+			'Netzwerkbeiträge Einstellungen',
+			'Netzwerkbeiträge',
+			'manage_options',
+			'network-posts-settings',
+			[ $this, 'render_settings_page' ]
+		);
 	}
 
-}
+	public function register_settings() {
+		register_setting( 'network_posts_options', 'network_posts_defaults' );
 
-function display_recent_posts( $tmp_number, $tmp_title_characters, $tmp_content_characters, $tmp_title_content_divider, $tmp_title_before, $tmp_title_after, $tmp_global_before, $tmp_global_after, $tmp_before, $tmp_after, $tmp_title_link = 'no', $tmp_show_avatars = 'yes', $tmp_avatar_size = 16, $posttype = 'post', $read_more = '', $read_more_link = false, $show_blog = false, $output = true ) {
-	global $recentpostsshortcode;
-	$recentpostsshortcode->display_recent_posts( $tmp_number, $tmp_title_characters, $tmp_content_characters, $tmp_title_content_divider, $tmp_title_before, $tmp_title_after, $tmp_global_before, $tmp_global_after, $tmp_before, $tmp_after, $tmp_title_link, $tmp_show_avatars, $tmp_avatar_size, $posttype, $read_more, $read_more_link, $show_blog, $output );
-}
+		add_settings_section(
+			'network_posts_main',
+			'Standardwerte für Shortcode/Block',
+			null,
+			'network-posts-settings'
+		);
 
-$recentpostsshortcode = new recentpostsshortcode();
+		add_settings_field(
+			'number',
+			'Anzahl Beiträge',
+			function() {
+				$options = get_option( 'network_posts_defaults' );
+				echo '<input type="number" name="network_posts_defaults[number]" value="' . esc_attr( $options['number'] ?? 5 ) . '" min="1" max="20">';
+			},
+			'network-posts-settings',
+			'network_posts_main'
+		);
+
+		add_settings_field(
+			'layout',
+			'Layout',
+			function() {
+				$options = get_option( 'network_posts_defaults' );
+				$layout = $options['layout'] ?? 'card';
+				echo '<select name="network_posts_defaults[layout]">
+					<option value="card"' . selected( $layout, 'card', false ) . '>Card</option>
+					<option value="grid"' . selected( $layout, 'grid', false ) . '>Grid</option>
+				</select>';
+			},
+			'network-posts-settings',
+			'network_posts_main'
+		);
+	}
+
+	public function render_settings_page() {
+		echo '<div class="wrap"><h1>Netzwerkbeiträge – Einstellungen</h1>';
+		echo '<form method="post" action="options.php">';
+		settings_fields( 'network_posts_options' );
+		do_settings_sections( 'network-posts-settings' );
+		submit_button();
+		echo '</form></div>';
+	}
+}
+//delete_option( 'network_posts_defaults' );
+new Recent_Network_Posts();
