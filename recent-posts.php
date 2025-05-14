@@ -1,9 +1,9 @@
 <?php
 /*
 Plugin Name: Aktuelle Netzwerkbeiträge
-Plugin URI: https://n3rds.work
+Plugin URI: https://cp-psource.github.io/recent-global-posts/
 Description: Zeige eine anpassbare Liste der letzten Beiträge aus Deinem Multisite-Netzwerk auf Deiner Hauptseite an.
-Author: WMS N@W
+Author: PSOURCE
 Version: 3.1.1
 Author URI: https://github.com/cp-psource
 */
@@ -52,6 +52,7 @@ class Recent_Network_Posts {
 		add_action( 'init', [ $this, 'register_block' ] );
 		add_action( 'admin_menu', [ $this, 'register_settings_page' ] );
 		add_action( 'admin_init', [ $this, 'register_settings' ] );
+		require_once plugin_dir_path(__FILE__) . 'block/block.php';
 	}
 
 	public function enqueue_styles() {
@@ -62,91 +63,92 @@ class Recent_Network_Posts {
 
 	private function get_inline_css() {
 		return <<<CSS
-.network-posts {
-	display: flex;
-	flex-direction: column;
-	gap: 2rem;
-	margin: 2rem 0;
-}
+		.network-posts {
+		display: flex;
+		flex-direction: column;
+		gap: 2rem;
+		margin: 2rem 0;
+	}
 
-.network-posts.layout-grid {
-	all: initial;
-	display: grid !important;
-	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
-	gap: 2rem !important;
-}
+	.network-posts.layout-grid {
+		all: initial;
+		display: grid !important;
+		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+		gap: 2rem !important;
+	}
 
-.network-post {
-	background: #fff;
-	border: 1px solid #ddd;
-	border-radius: 12px;
-	overflow: hidden;
-	display: flex;
-	flex-direction: column;
-	box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-	transition: transform 0.2s ease;
-}
+	.network-post {
+		background: #fff;
+		border: 1px solid #ddd;
+		border-radius: 12px;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+		transition: transform 0.2s ease;
+	}
 
-.network-post:hover {
-	transform: translateY(-4px);
-}
+	.network-post:hover {
+		transform: translateY(-4px);
+	}
 
-.network-post .thumb img {
-	width: 100%;
-	height: auto;
-	display: block;
-}
+	.network-post .thumb img {
+		width: 100%;
+		height: auto;
+		display: block;
+	}
 
-.network-post .content {
-	padding: 1rem;
-}
+	.network-post .content {
+		padding: 1rem;
+	}
 
-.network-post h3 {
-	margin-top: 0;
-	font-size: 1.2rem;
-}
+	.network-post h3 {
+		margin-top: 0;
+		font-size: 1.2rem;
+	}
 
-.network-post p {
-	margin: 0.5rem 0;
-	font-size: 0.95rem;
-	color: #444;
-}
+	.network-post p {
+		margin: 0.5rem 0;
+		font-size: 0.95rem;
+		color: #444;
+	}
 
-.network-post .avatar {
-	margin-top: 0.5rem;
-}
+	.network-post .avatar {
+		margin-top: 0.5rem;
+	}
 
-.network-post .blogname {
-	font-size: 0.85rem;
-	color: #888;
-}
+	.network-post .blogname {
+		font-size: 0.85rem;
+		color: #888;
+	}
 
-.network-post .read-more {
-	display: inline-block;
-	margin-top: 1rem;
-	font-weight: bold;
-	text-decoration: none;
-	color: #005f99;
-}
+	.network-post .read-more {
+		display: inline-block;
+		margin-top: 1rem;
+		font-weight: bold;
+		text-decoration: none;
+		color: #005f99;
+	}
 
-.network-post .read-more:hover {
-	text-decoration: underline;
-}
-CSS;
+	.network-post .read-more:hover {
+		text-decoration: underline;
+	}
+	CSS;
 	}
 
 	public function render_shortcode( $atts ) {
 		$options = get_option( 'network_posts_defaults', [] );
-		$args = shortcode_atts( array_merge( [
-			'number'             => $options['number'] ?? 5,
-			'posttype'           => 'post',
-			'show_avatars'       => 'no',
-			'avatar_size'        => 32,
-			'show_blog'          => false,
-			'read_more'          => '',
-			'read_more_link'     => false,
-			'layout'             => isset( $options['layout'] ) ? sanitize_key( $options['layout'] ) : 'card',
-		], $options ), $atts );
+
+		$args = shortcode_atts( [
+			'number'           => $options['number'] ?? 5,
+			'posttype'         => 'post',
+			'show_thumb'       => $options['show_thumb'] ?? 'yes',
+			'thumb_size'       => $options['thumb_size'] ?? 'medium',
+			'show_author'      => $options['show_author'] ?? 'yes',
+			'show_blog'        => $options['show_blog'] ?? 'yes',
+			'read_more_text'   => $options['read_more_text'] ?? '',
+			'layout'           => isset( $options['layout'] ) ? sanitize_key( $options['layout'] ) : 'card',
+		], $atts );
 
 		return $this->get_recent_posts( $args );
 	}
@@ -168,13 +170,12 @@ CSS;
 			while ( $q->have_posts() ) {
 				$q->the_post();
 				$posts[] = [
-					'title'   => get_the_title(),
-					'url'     => get_permalink(),
-					'excerpt' => get_the_excerpt(),
-					'thumb'   => get_the_post_thumbnail( get_the_ID(), 'medium' ),
-					'blogname'=> get_bloginfo( 'name' ),
-					'author'  => get_the_author_meta( 'display_name' ),
-					'avatar'  => get_avatar( get_the_author_meta('ID'), $args['avatar_size'] )
+					'title'    => get_the_title(),
+					'url'      => get_permalink(),
+					'excerpt'  => get_the_excerpt(),
+					'thumb'    => $args['show_thumb'] === 'yes' ? get_the_post_thumbnail( get_the_ID(), $args['thumb_size'] ?? 'medium' ) : '',
+					'blogname' => get_bloginfo( 'name' ),
+					'author'   => get_the_author_meta( 'display_name' )
 				];
 			}
 
@@ -182,42 +183,44 @@ CSS;
 			restore_current_blog();
 		}
 
+		// Du kannst das Sortieren bei Bedarf anpassen
 		usort( $posts, function( $a, $b ) {
 			return strcmp( $b['title'], $a['title'] );
 		});
 
-		$layout = preg_replace( '/[^a-z0-9_-]/i', '', $args['layout'] );
 		$layout_class = 'layout-' . sanitize_html_class( sanitize_key( $args['layout'] ) );
-
 		$html = '<div class="network-posts ' . esc_attr( $layout_class ) . '">';
 
 		foreach ( array_slice( $posts, 0, $args['number'] ) as $post ) {
-			$html .= '<div class="network-post">
-				<div class="thumb">' . $post['thumb'] . '</div>
-				<div class="content">
-					<h3><a href="' . esc_url( $post['url'] ) . '">' . esc_html( $post['title'] ) . '</a></h3>
-					<p>' . esc_html( $post['excerpt'] ) . '</p>
-					<small>von ' . esc_html( $post['author'] ) . '</small>';
+			$html .= '<div class="network-post">';
 
-				if ( $args['show_avatars'] === 'yes' ) {
-					$html .= '<div class="avatar">' . $post['avatar'] . '</div>';
-				}
+			if ( ! empty( $post['thumb'] ) ) {
+				$html .= '<div class="thumb">' . $post['thumb'] . '</div>';
+			}
 
-				if ( $args['show_blog'] ) {
-					$html .= '<div class="blogname">' . esc_html( $post['blogname'] ) . '</div>';
-				}
+			$html .= '<div class="content">
+				<h3><a href="' . esc_url( $post['url'] ) . '">' . esc_html( $post['title'] ) . '</a></h3>
+				<p>' . esc_html( $post['excerpt'] ) . '</p>';
 
-				if ( $args['read_more'] ) {
-					$link = $args['read_more_link'] ? $post['url'] : '#';
-					$html .= '<a class="read-more" href="' . esc_url( $link ) . '">' . esc_html( $args['read_more'] ) . '</a>';
-				}
+			if ( $args['show_author'] === 'yes' ) {
+				$html .= '<small>von ' . esc_html( $post['author'] ) . '</small>';
+			}
 
-				$html .= '</div></div>';
+			if ( $args['show_blog'] === 'yes' ) {
+				$html .= '<div class="blogname">' . esc_html( $post['blogname'] ) . '</div>';
+			}
+
+			if ( ! empty( $args['read_more_text'] ) ) {
+				$html .= '<a class="read-more" href="' . esc_url( $post['url'] ) . '">' . esc_html( $args['read_more_text'] ) . '</a>';
+			}
+
+			$html .= '</div></div>';
 		}
 
 		$html .= '</div>';
 		return $html;
 	}
+
 
 	public function register_block() {
 		if ( function_exists( 'register_block_type' ) ) {
@@ -245,6 +248,7 @@ CSS;
 			'network-posts-settings'
 		);
 
+		// Anzahl Beiträge
 		add_settings_field(
 			'number',
 			'Anzahl Beiträge',
@@ -256,6 +260,7 @@ CSS;
 			'network_posts_main'
 		);
 
+		// Layout
 		add_settings_field(
 			'layout',
 			'Layout',
@@ -266,6 +271,75 @@ CSS;
 					<option value="card"' . selected( $layout, 'card', false ) . '>Card</option>
 					<option value="grid"' . selected( $layout, 'grid', false ) . '>Grid</option>
 				</select>';
+			},
+			'network-posts-settings',
+			'network_posts_main'
+		);
+
+		// Beitragsbild anzeigen
+		add_settings_field(
+			'show_thumb',
+			'Beitragsbild anzeigen',
+			function() {
+				$options = get_option( 'network_posts_defaults' );
+				$val = $options['show_thumb'] ?? 'yes';
+				echo '<label><input type="checkbox" name="network_posts_defaults[show_thumb]" value="yes" ' . checked( $val, 'yes', false ) . '> Ja</label>';
+			},
+			'network-posts-settings',
+			'network_posts_main'
+		);
+
+		// Beitragsbild-Größe
+		add_settings_field(
+			'thumb_size',
+			'Beitragsbild-Größe',
+			function() {
+				$options = get_option( 'network_posts_defaults' );
+				$size = $options['thumb_size'] ?? 'medium';
+				echo '<select name="network_posts_defaults[thumb_size]">
+					<option value="thumbnail"' . selected( $size, 'thumbnail', false ) . '>Thumbnail</option>
+					<option value="medium"' . selected( $size, 'medium', false ) . '>Medium</option>
+					<option value="large"' . selected( $size, 'large', false ) . '>Large</option>
+				</select>';
+			},
+			'network-posts-settings',
+			'network_posts_main'
+		);
+
+		// Autor anzeigen
+		add_settings_field(
+			'show_author',
+			'Autor anzeigen',
+			function() {
+				$options = get_option( 'network_posts_defaults' );
+				$val = $options['show_author'] ?? 'yes';
+				echo '<label><input type="checkbox" name="network_posts_defaults[show_author]" value="yes" ' . checked( $val, 'yes', false ) . '> Ja</label>';
+			},
+			'network-posts-settings',
+			'network_posts_main'
+		);
+
+		// Blogname anzeigen
+		add_settings_field(
+			'show_blog',
+			'Blogname anzeigen',
+			function() {
+				$options = get_option( 'network_posts_defaults' );
+				$val = $options['show_blog'] ?? 'yes';
+				echo '<label><input type="checkbox" name="network_posts_defaults[show_blog]" value="yes" ' . checked( $val, 'yes', false ) . '> Ja</label>';
+			},
+			'network-posts-settings',
+			'network_posts_main'
+		);
+
+		// Weiterlesen-Text
+		add_settings_field(
+			'read_more_text',
+			'"Weiterlesen"-Text',
+			function() {
+				$options = get_option( 'network_posts_defaults' );
+				$val = $options['read_more_text'] ?? 'Weiterlesen';
+				echo '<input type="text" name="network_posts_defaults[read_more_text]" value="' . esc_attr( $val ) . '" />';
 			},
 			'network-posts-settings',
 			'network_posts_main'
