@@ -119,10 +119,6 @@ class Recent_Network_Posts {
 		color: #444;
 	}
 
-	.network-post .avatar {
-		margin-top: 0.5rem;
-	}
-
 	.network-post .blogname {
 		font-size: 0.85rem;
 		color: #888;
