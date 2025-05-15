@@ -14,8 +14,6 @@ title: "Netzwerkbeiträge"
 
 # Netzwerk-Beiträge (Network Recent Posts)
 
-# Netzwerk-Beiträge (Network Recent Posts)
-
 Ein WordPress Multisite-Plugin zur Anzeige aktueller Beiträge aus allen Blogs im Netzwerk als Liste oder Grid.
 
 ---

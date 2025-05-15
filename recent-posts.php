@@ -152,6 +152,7 @@ class Recent_Network_Posts {
 			'thumb_size'       => $options['thumb_size'] ?? 'medium',
 			'show_author'      => $options['show_author'] ?? 'yes',
 			'show_blog'        => $options['show_blog'] ?? 'yes',
+			'excerpt_length' => $options['excerpt_length'] ?? 200,
 			'read_more_text'   => $options['read_more_text'] ?? '',
 			'layout'           => isset( $options['layout'] ) ? sanitize_key( $options['layout'] ) : 'card',
 		], $atts );
@@ -191,6 +192,14 @@ class Recent_Network_Posts {
 			$author  = get_the_author_meta( 'display_name' );
 			$blogname = get_bloginfo( 'name' );
 
+			$excerpt_length = intval( $args['excerpt_length'] ?? 200 );
+			$content_stripped = wp_strip_all_tags( $content );
+			if ( mb_strlen( $content_stripped ) > $excerpt_length ) {
+				$excerpt = mb_substr( $content_stripped, 0, $excerpt_length ) . '...';
+			} else {
+				$excerpt = $content_stripped;
+			}
+
 			$thumb_html = '';
 			if ( $args['show_thumb'] === 'yes' ) {
 				$thumb_id = get_post_thumbnail_id( $post_id );
@@ -205,7 +214,7 @@ class Recent_Network_Posts {
 			$posts[] = [
 				'title'    => $title,
 				'url'      => $url,
-				'excerpt'  => wp_trim_words( $content, 20, '...' ),
+				'excerpt'  => $excerpt,
 				'thumb'    => $thumb_html,
 				'blogname' => $blogname,
 				'author'   => $author,
@@ -351,6 +360,19 @@ class Recent_Network_Posts {
 				$options = get_option( 'network_posts_defaults' );
 				$val = $options['show_blog'] ?? 'yes';
 				echo '<label><input type="checkbox" name="network_posts_defaults[show_blog]" value="yes" ' . checked( $val, 'yes', false ) . '> Ja</label>';
+			},
+			'network-posts-settings',
+			'network_posts_main'
+		);
+
+		// Länge Auszug (Zeichen)
+		add_settings_field(
+			'excerpt_length',
+			'Länge Auszug (Zeichen)',
+			function() {
+				$options = get_option( 'network_posts_defaults' );
+				$val = $options['excerpt_length'] ?? 200; // default 200 Zeichen
+				echo '<input type="number" name="network_posts_defaults[excerpt_length]" value="' . esc_attr( $val ) . '" min="10" max="500" />';
 			},
 			'network-posts-settings',
 			'network_posts_main'
