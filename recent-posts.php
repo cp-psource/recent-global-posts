@@ -167,40 +167,52 @@ class Recent_Network_Posts {
 		$html = '';
 		$posts = [];
 
-network_query_posts([
-	'post_type'      => $args['posttype'],
-	'posts_per_page' => $args['number'],
-	'post_status'    => 'publish',
-]);
+		network_query_posts([
+			'post_type'      => $args['posttype'],
+			'posts_per_page' => $args['number'],
+			'post_status'    => 'publish',
+		]);
 
-global $network_post;
+		global $network_post;
 
-$posts = [];
+		$posts = [];
 
-while ( network_have_posts() ) {
-	network_the_post();
+		while ( network_have_posts() ) {
+			network_the_post();
 
-	$blog_id = $network_post->blog_id ?? get_current_blog_id();
-	$post_id = get_the_ID();
+			$blog_id = $network_post->BLOG_ID ?? get_current_blog_id();
+			$post_id = $network_post->ID;
 
-	// Thumbnail holen aus Indexer
-	$thumb_id = $network_post->thumbnails[ $post_id ] ?? null;
-	$thumb_html = '';
-	if ( $args['show_thumb'] === 'yes' && $thumb_id ) {
-		$thumb_html = wp_get_attachment_image( $thumb_id, $args['thumb_size'] ?? 'medium' );
-	}
+			switch_to_blog( $blog_id );
 
-	$posts[] = [
-		'title'    => network_get_the_title(),
-		'url'      => network_get_permalink(),
-		'excerpt'  => wp_trim_words( network_get_the_content(), 20, '...' ),
-		'thumb'    => $thumb_html,
-		'blogname' => $network_post->blogname ?? "Blog #$blog_id",
-		'author'   => get_the_author_meta( 'display_name' ),
-		'ID'       => $post_id,
-		'blog_id'  => $blog_id,
-	];
-}
+			$title   = network_get_the_title();
+			$url     = network_get_permalink();
+			$content = network_get_the_content();
+			$author  = get_the_author_meta( 'display_name' );
+			$blogname = get_bloginfo( 'name' );
+
+			$thumb_html = '';
+			if ( $args['show_thumb'] === 'yes' ) {
+				$thumb_id = get_post_thumbnail_id( $post_id );
+				error_log( "[{$blog_id} - {$post_id}] Thumbnail-ID: " . $thumb_id );
+				if ( $thumb_id ) {
+					$thumb_html = wp_get_attachment_image( $thumb_id, $args['thumb_size'] ?? 'medium' );
+				}
+			}
+
+			restore_current_blog();
+
+			$posts[] = [
+				'title'    => $title,
+				'url'      => $url,
+				'excerpt'  => wp_trim_words( $content, 20, '...' ),
+				'thumb'    => $thumb_html,
+				'blogname' => $blogname,
+				'author'   => $author,
+				'ID'       => $post_id,
+				'blog_id'  => $blog_id,
+			];
+		}
 
 		// Sortierung nach Titel (bleibt so)
 		usort( $posts, function( $a, $b ) {
@@ -214,8 +226,8 @@ while ( network_have_posts() ) {
 			$html .= '<div class="network-post">';
 
 			if ( ! empty( $post['thumb'] ) ) {
-				$html .= '<div class="thumb">' . $post['thumb'] . '</div>';
-			}
+			$html .= '<div class="thumb">' . $post['thumb'] . '</div>';
+		}
 
 			$html .= '<div class="content">
 				<h3><a href="' . esc_url( $post['url'] ) . '">' . esc_html( $post['title'] ) . '</a></h3>

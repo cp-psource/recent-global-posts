@@ -1,55 +1,35 @@
-Zeigt aktuelle Beiträge aus deinem WordPress-Multisite-Netzwerk als Karten- oder Grid-Layout – inklusive Beitragsbildern, Avataren, Autoreninfos und mehr.
+# Netzwerk-Beiträge (Network Recent Posts)
 
-Entwickelt für moderne Netzwerke
-Dieses Plugin nutzt den Multisite Beitragsindex, um die neuesten Beiträge aus allen öffentlichen Sites deines Netzwerks zentral auf der Hauptseite anzuzeigen – perfekt für Communities, Blogs und BuddyPress-Netzwerke.
+Zeigt aktuelle Beiträge aus der WordPress-Multisite als übersichtliche Liste oder Grid an.
 
-Features:
+## Features
 
-Beitragsbilder
+- Anzeige von Beiträgen aus allen Blogs im Netzwerk  
+- Beitragsbild, Autor und Blogname optional einblendbar  
+- Layout-Optionen (Liste/Grid)  
+- "Weiterlesen"-Text anpassbar über das Dashboard  
+- Einstellungen zentral im Admin-Dashboard (keine Shortcode-Attribute nötig)  
 
-Karten- und Grid-Layout (responsive)
+## Voraussetzungen
 
-Autoren-Avatare & Namen
+- [Post Indexer Plugin](https://deine-url-zum-plugin) (muss aktiv sein) — sorgt für effiziente Netzwerk-Abfrage
 
-Blog-Namen der Quelle
+## Installation
 
-„Weiterlesen“-Links
+1. Plugin in das Multisite-Netzwerk hochladen und aktivieren  
+2. Im Netzwerk-Admin die Plugin-Einstellungen konfigurieren  
+3. Shortcode `[network_recent_posts]` auf Seiten/Posts nutzen  
 
-Integriertes modernes CSS (kein eigenes Styling nötig)
+## Einstellungen
 
-Shortcode-Nutzung
-text
-Kopieren
-Bearbeiten
-[recent_network_posts]
-Zeigt standardmäßig 5 Beiträge im Kartenlayout.
+Alle Optionen (Anzahl Beiträge, Layout, Anzeige von Autor/Blog/Thumbnails, „Weiterlesen“-Text) sind im Dashboard unter **Netzwerk → Einstellungen → Netzwerk-Beiträge** einstellbar.
 
-Verfügbare Attribute
-Attribut	Beschreibung
-number="5"	Anzahl angezeigter Beiträge
-posttype="post"	Beitragstyp (z. B. post, page, custom_post_type)
-layout="card"	Anzeige-Stil: card (Standard) oder grid
-show_avatars="yes"	Zeigt Autoren-Avatar
-avatar_size="48"	Größe der Avatare in Pixel
-show_blog="true"	Zeigt Namen der Quellseite
-read_more="Weiterlesen"	Text für den Weiterlesen-Link
-read_more_link="true"	Aktiviert Link zu Beitrag für Weiterlesen-Text
+## Shortcode
 
-Beispie
-[recent_network_posts number="6" layout="grid" show_avatars="yes" avatar_size="40" show_blog="true" read_more="Mehr erfahren" read_more_link="true"]
-Zeigt 6 Beiträge im Grid-Layout mit Avataren, Quellblog und Link zum vollständigen Beitrag.
+`[network_recent_posts]`
 
-Styling
-Das Plugin bringt direkt ein modernes, responsives CSS mit:
+Aktuell werden keine Shortcode-Attribute benötigt, da alle Einstellungen aus dem Dashboard geladen werden.
 
-Flexibles Grid mit Auto-Anpassung
+---
 
-Sanfte Hover-Effekte
-
-Mobiltauglich
-
-Optisch aufgeräumt
-
-Du kannst es optional mit eigenem CSS überschreiben, falls du weiter anpassen möchtest.
-
-
+Falls du das Plugin nutzt, danke für dein Feedback und Support!
