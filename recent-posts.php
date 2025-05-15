@@ -49,10 +49,16 @@ class Recent_Network_Posts {
 	public function __construct() {
 		add_shortcode( 'recent_network_posts', [ $this, 'render_shortcode' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_styles' ], 99 );
-		add_action( 'init', [ $this, 'register_block' ] );
 		add_action( 'admin_menu', [ $this, 'register_settings_page' ] );
 		add_action( 'admin_init', [ $this, 'register_settings' ] );
-		require_once plugin_dir_path(__FILE__) . 'block/block.php';
+		// Warnung, wenn Indexer nicht aktiv
+		add_action( 'admin_notices', [ $this, 'check_indexer_plugin' ] );
+	}
+
+	public function check_indexer_plugin() {
+		if ( ! function_exists( 'network_query_posts' ) ) {
+			echo '<div class="notice notice-error"><p><strong>Indexer-Plugin nicht aktiv!</strong> Das Plugin "Multisite Indexer" wird benötigt, damit [recent_network_posts] funktioniert.</p></div>';
+		}
 	}
 
 	public function enqueue_styles() {
@@ -154,36 +160,49 @@ class Recent_Network_Posts {
 	}
 
 	private function get_recent_posts( array $args ): string {
-		global $wpdb;
-		$sites = get_sites( [ 'public' => 1, 'archived' => 0, 'spam' => 0 ] );
-		$posts = [];
-
-		foreach ( $sites as $site ) {
-			switch_to_blog( $site->blog_id );
-
-			$q = new WP_Query([
-				'post_type'      => $args['posttype'],
-				'posts_per_page' => $args['number'],
-				'post_status'    => 'publish',
-			]);
-
-			while ( $q->have_posts() ) {
-				$q->the_post();
-				$posts[] = [
-					'title'    => get_the_title(),
-					'url'      => get_permalink(),
-					'excerpt'  => get_the_excerpt(),
-					'thumb'    => $args['show_thumb'] === 'yes' ? get_the_post_thumbnail( get_the_ID(), $args['thumb_size'] ?? 'medium' ) : '',
-					'blogname' => get_bloginfo( 'name' ),
-					'author'   => get_the_author_meta( 'display_name' )
-				];
-			}
-
-			wp_reset_postdata();
-			restore_current_blog();
+		if ( ! function_exists( 'network_query_posts' ) ) {
+			return '<p>Indexer-Plugin nicht aktiv. Keine Beiträge verfügbar.</p>';
 		}
 
-		// Du kannst das Sortieren bei Bedarf anpassen
+		$html = '';
+		$posts = [];
+
+network_query_posts([
+	'post_type'      => $args['posttype'],
+	'posts_per_page' => $args['number'],
+	'post_status'    => 'publish',
+]);
+
+global $network_post;
+
+$posts = [];
+
+while ( network_have_posts() ) {
+	network_the_post();
+
+	$blog_id = $network_post->blog_id ?? get_current_blog_id();
+	$post_id = get_the_ID();
+
+	// Thumbnail holen aus Indexer
+	$thumb_id = $network_post->thumbnails[ $post_id ] ?? null;
+	$thumb_html = '';
+	if ( $args['show_thumb'] === 'yes' && $thumb_id ) {
+		$thumb_html = wp_get_attachment_image( $thumb_id, $args['thumb_size'] ?? 'medium' );
+	}
+
+	$posts[] = [
+		'title'    => network_get_the_title(),
+		'url'      => network_get_permalink(),
+		'excerpt'  => wp_trim_words( network_get_the_content(), 20, '...' ),
+		'thumb'    => $thumb_html,
+		'blogname' => $network_post->blogname ?? "Blog #$blog_id",
+		'author'   => get_the_author_meta( 'display_name' ),
+		'ID'       => $post_id,
+		'blog_id'  => $blog_id,
+	];
+}
+
+		// Sortierung nach Titel (bleibt so)
 		usort( $posts, function( $a, $b ) {
 			return strcmp( $b['title'], $a['title'] );
 		});
@@ -221,13 +240,6 @@ class Recent_Network_Posts {
 		return $html;
 	}
 
-
-	public function register_block() {
-		if ( function_exists( 'register_block_type' ) ) {
-			register_block_type( __DIR__ . '/block' );
-		}
-	}
-
 	public function register_settings_page() {
 		add_options_page(
 			'Netzwerkbeiträge Einstellungen',
@@ -243,7 +255,7 @@ class Recent_Network_Posts {
 
 		add_settings_section(
 			'network_posts_main',
-			'Standardwerte für Shortcode/Block',
+			'Standardwerte für Shortcode/',
 			null,
 			'network-posts-settings'
 		);

@@ -1,9 +1,9 @@
 ---
 layout: psource-theme
-title: "PS-eNewsletter"
+title: "Netzwerkbeiträge"
 ---
 
-<h2 align="center" style="color:#38c2bb;">📚 PS-eNewsletter</h2>
+<h2 align="center" style="color:#38c2bb;">📚 Netzwerkbeiträge</h2>
 
 <div class="menu">
   <a href="https://github.com/cp-psource/recent-global-posts/discussions" style="color:#38c2bb;">💬 Forum</a>
